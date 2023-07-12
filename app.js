@@ -1,28 +1,32 @@
 let midi = null;
 let delugeIn = null;
 let delugeOut = null;
+let statusmsg = null;
+
+function setstatus(text) {
+  statusmsg.innerText = text
+}
 
 function onMIDISuccess(midiAccess) {
-  console.log("MIDI ready! :D");
+  setstatus("webmidi ready");
   midi = midiAccess; // store in the global (in real usage, would probably keep in an object instance)
 }
 
 function onMIDIFailure(msg) {
-  console.error(`Failed to get MIDI access :( - ${msg}`);
+  setstatus(`Failed to get MIDI access :( - ${msg}`);
 }
 
 window.addEventListener('load', function() { 
+  statusmsg = document.getElementById("midiStatus")
   var navigator = window.navigator;
   if (navigator.requestMIDIAccess) {
     navigator.requestMIDIAccess({ sysex: true }).then( onMIDISuccess, onMIDIFailure );
   } else {
-    console.log("why no midi :(");
+    setstatus("webmidi unavail, check browser permissions");
   }
 });
 
 function dobuton() {
-  console.log("did buton");
-
    for (const entry of midi.inputs) {
     const input = entry[1];
     console.log(
@@ -50,10 +54,16 @@ function dobuton() {
   }
 
   if (delugeIn != null && delugeOut != null) {
-    alert("found deluge!");
-    delugeOut.send([0xf0, 0x7d, 0x01, 0xf7]);
+    setstatus("found deluge!");
+    delugeIn.onmidimessage = handleData;
+    delugeOut.send([0xf0, 0x7d, 0x00, 0xf7]);
   } else {
-    alert("no deluge.");
+    setstatus("no deluge.");
   }
-
 }
+
+function handleData(msg) {
+  console.log(msg.data);
+  setstatus("found deluge! got some data.");
+}
+
