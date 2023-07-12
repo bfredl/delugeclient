@@ -44,7 +44,7 @@ function dobuton() {
       `Output port [type:'${output.type}'] id:'${output.id}' manufacturer:'${output.manufacturer}' name:'${output.name}' version:'${output.version}'`,
     );
 
-     if (output.name == "Deluge MIDI 3") {
+     if (output.name.includes("Deluge MIDI 3")) {
        delugeOut = output;
      }
   }
