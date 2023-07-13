@@ -1,6 +1,7 @@
 let midi = null;
 let delugeIn = null;
 let delugeOut = null;
+let theInterval = null;
 
 function $(name) {
   return document.getElementById(name)
@@ -28,6 +29,7 @@ window.addEventListener('load', function() {
 
   $("connectButton").addEventListener("click", connect)
   $("getOledButton").addEventListener("click", getOled)
+  $("intervalButton").addEventListener("click", setRefresh)
   $("testDecodeButton").addEventListener("click", () => decode(testdata))
   return;
 
@@ -71,6 +73,19 @@ function connect() {
 
 function getOled() {
     delugeOut.send([0xf0, 0x7d, 0x02, 0x00, 0x01, 0xf7]);
+}
+
+function setRefresh() {
+  if (theInterval != null) {
+    window.clearInterval(theInterval)
+    theInterval = null;
+  }
+
+  let value = parseInt($("msInput").value);
+
+  if (value > 0) {
+    theInterval = window.setInterval(getOled, value);
+  }
 }
 
 let lastmsg
