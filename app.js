@@ -102,13 +102,97 @@ function decode(data) {
 
     if (data[4] != 1) {
       console.log("DO NOT DO THAT")
+      return;
     }
 
     let packed = data.subarray(6,data.length-1)
     console.log("packed size "+ packed.length);
 
+    let unpacked = unpack(packed)
+    console.log("unpacked size "+ unpacked.length);
+
+    let ctx = $("myCanvas").getContext("2d")
+
+    let px_height = 5;
+    let px_width = 5;
+    let indist = 1;
+
+    let blk_width = 128;
+    ctx.fillStyle = "#222222";
+    ctx.fillRect(0,0,px_width*128,px_height*48)
+
+    ctx.fillStyle = "#dddddd";
+    for (let blk = 0; blk < 6; blk++) {
+      for (let rstride = 0; rstride < 8; rstride++) {
+        let mask = 1 << (rstride);
+        for (let j = 0; j < blk_width; j++) {
+          if ((blk*blk_width+j) > unpacked.lenght) {
+            break;
+          }
+          let idata = (unpacked[blk*blk_width+j] & mask);
+
+          let y = blk*8 + rstride;
+
+          if (idata > 0) {
+            ctx.fillRect(j*px_width,y*px_height, px_width-indist, px_height-indist);
+          }
+
+        }
+      }
+    }
     return;
   }
-
 }
 
+function unpack(src) {
+  let src_len = src.length
+  let dst = new Uint8Array(2048); // TODO: dynamic size!
+  let dst_size = 2048;
+
+  let d = 0;
+  let s = 0;
+
+  while (s+1 < src_len) {
+    let first = src[s++];
+    if (first < 64) {
+      let size = 0; let off = 0;
+      if (first < 4) { size = 2; off = 0; }
+      else if (first < 12) { size = 3; off = 4; }
+      else if (first < 28) { size = 4; off = 12; }
+      else if (first < 60) { size = 5; off = 28; }
+      else {
+        return -7;
+      }
+
+      if (size > src_len-s) {
+        // printf("s: %d, d: %d, first: %d\n", s, d, first);
+        return -1;
+      }
+      if (size > dst_size-d) return -11;
+      let highbits = first-off;
+      for (let j = 0; j < size; j++) {
+        dst[d+j] = src[s+j] & 0x7f;
+        if (highbits & (1<<j)) {
+          dst[d+j] |= 0x80;
+        }
+      }
+
+      d += size;
+      s += size;
+    } else {
+      // first = 64 + (runlen<<1) + highbit
+      first = first-64;
+      let high = (first&1);
+      let runlen = first >> 1;
+      if (runlen == 31) {
+        runlen = 31 + src[s++];
+        if (s == src_len) return -3;
+      }
+      let byteval = src[s++] + 128*high;
+      if (runlen > dst_size-d) return -12;
+      dst.fill(byteval, d, d+runlen);
+      d += runlen;
+    }
+  }
+  return dst.subarray(0,d);
+}
