@@ -20,9 +20,6 @@ function onMIDIFailure(msg) {
 }
 
 window.addEventListener('load', function() {
-  decode(testdata)
-  return;
-
   if (navigator.requestMIDIAccess) {
     navigator.requestMIDIAccess({ sysex: true }).then( onMIDISuccess, onMIDIFailure );
   } else {
@@ -31,6 +28,9 @@ window.addEventListener('load', function() {
 
   $("connectButton").addEventListener("click", connect)
   $("getOledButton").addEventListener("click", getOled)
+  $("testDecodeButton").addEventListener("click", () => decode(testdata))
+  return;
+
 });
 
 function connect() {
@@ -85,12 +85,6 @@ function handleData(msg) {
   decode(msg.data)
 }
 
-testdata = new Uint8Array ([
-    240, 125, 2, 64, 1, 0, 126, 127, 0, 102, 0, 66, 76, 71, 18, 44, 100, 0, 6, 8, 112, 36, 8, 6, 0, 126, 8, 16, 16, 32, 126, 0, 68, 2, 67, 126, 68, 2, 2, 0, 126, 70, 16, 67, 126, 126, 127, 0, 114, 0, 71, 64, 72, 0, 69, 124, 68, 108, 3, 124, 120, 68, 0, 67, 96, 69, 120, 70, 12, 69, 120, 57, 96, 0, 0, 112, 124, 27, 28, 124, 112, 0, 68, 0, 69, 124, 69, 76, 5, 124, 120, 48, 68, 0, 69, 124, 68, 12, 10, 28, 120, 112,
-    68, 0, 20, 48, 120, 124, 108, 69, 76, 67, 0, 84, 0, 67, 96, 69, 120, 70, 12, 69, 120, 67, 96, 68, 0, 69, 124, 71, 76, 66, 12, 86, 0, 69, 124, 68, 12, 10, 28, 120, 112, 70, 0, 69, 124, 70, 108, 66, 12, 70, 0, 69, 124, 98, 0, 68, 7, 68, 6, 0, 7, 3, 70, 0, 68, 3, 70, 6, 68, 3, 12, 0, 4, 7, 3, 70, 1, 12, 3, 7, 4, 0, 68, 7, 28, 0, 1, 7, 6, 4, 68, 0, 68, 7, 68, 6, 4, 7, 3, 1,
-    68, 0, 66, 2, 70, 6, 4, 7, 3, 1, 86, 0, 68, 3, 70, 6, 68, 3, 70, 0, 68, 7, 94, 0, 68, 7, 68, 6, 4, 7, 3, 1, 70, 0, 68, 7, 72, 6, 70, 0, 68, 7, 72, 6, 126, 98, 0, 247
-]);
-
 function decode(data) {
   if (data.length < 3 || data[0] != 0xf0 || data[1] != 0x7d) {
     console.log("foreign sysex?")
@@ -115,13 +109,15 @@ function decode(data) {
 
     let px_height = 5;
     let px_width = 5;
-    let indist = 1;
+    let indist = 0.5;
+    let offx = 20;
+    let offy = 10;
 
     let blk_width = 128;
-    ctx.fillStyle = "#222222";
-    ctx.fillRect(0,0,px_width*128,px_height*48)
+    ctx.fillStyle = "#111111";
+    ctx.fillRect(offx,offy,px_width*128,px_height*48)
 
-    ctx.fillStyle = "#dddddd";
+    ctx.fillStyle = "#eeeeee";
     for (let blk = 0; blk < 6; blk++) {
       for (let rstride = 0; rstride < 8; rstride++) {
         let mask = 1 << (rstride);
@@ -134,7 +130,7 @@ function decode(data) {
           let y = blk*8 + rstride;
 
           if (idata > 0) {
-            ctx.fillRect(j*px_width,y*px_height, px_width-indist, px_height-indist);
+            ctx.fillRect(offx+j*px_width+indist,offy+y*px_height+indist, px_width-2*indist, px_height-2*indist);
           }
 
         }
@@ -196,3 +192,10 @@ function unpack(src) {
   }
   return dst.subarray(0,d);
 }
+
+testdata = new Uint8Array ([
+    240, 125, 2, 64, 1, 0, 126, 127, 0, 102, 0, 66, 76, 71, 18, 44, 100, 0, 6, 8, 112, 36, 8, 6, 0, 126, 8, 16, 16, 32, 126, 0, 68, 2, 67, 126, 68, 2, 2, 0, 126, 70, 16, 67, 126, 126, 127, 0, 114, 0, 71, 64, 72, 0, 69, 124, 68, 108, 3, 124, 120, 68, 0, 67, 96, 69, 120, 70, 12, 69, 120, 57, 96, 0, 0, 112, 124, 27, 28, 124, 112, 0, 68, 0, 69, 124, 69, 76, 5, 124, 120, 48, 68, 0, 69, 124, 68, 12, 10, 28, 120, 112,
+    68, 0, 20, 48, 120, 124, 108, 69, 76, 67, 0, 84, 0, 67, 96, 69, 120, 70, 12, 69, 120, 67, 96, 68, 0, 69, 124, 71, 76, 66, 12, 86, 0, 69, 124, 68, 12, 10, 28, 120, 112, 70, 0, 69, 124, 70, 108, 66, 12, 70, 0, 69, 124, 98, 0, 68, 7, 68, 6, 0, 7, 3, 70, 0, 68, 3, 70, 6, 68, 3, 12, 0, 4, 7, 3, 70, 1, 12, 3, 7, 4, 0, 68, 7, 28, 0, 1, 7, 6, 4, 68, 0, 68, 7, 68, 6, 4, 7, 3, 1,
+    68, 0, 66, 2, 70, 6, 4, 7, 3, 1, 86, 0, 68, 3, 70, 6, 68, 3, 70, 0, 68, 7, 94, 0, 68, 7, 68, 6, 4, 7, 3, 1, 70, 0, 68, 7, 72, 6, 70, 0, 68, 7, 72, 6, 126, 98, 0, 247
+]);
+
