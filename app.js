@@ -1,9 +1,13 @@
+/** @type {MIDIAccess} */
 let midi = null;
 /** @type {MIDIInput} */
 let delugeIn = null;
 /** @type {MIDIOutput} */
 let delugeOut = null;
 let theInterval = null;
+
+let devicesIn = null;
+let devicesOut = null;
 
 function $(name) {
   return document.getElementById(name)
@@ -13,9 +17,58 @@ function setstatus(text) {
   $("midiStatus").innerText = text
 }
 
+function setInput(input) {
+  if (delugeIn == input) {
+    return;
+  }
+  if (delugeIn != null) {
+    delugeIn.removeEventListener("midimessage", handleData);
+  }
+  delugeIn = input;
+  if (input != null) {
+    input.addEventListener("midimessage", handleData);
+  }
+}
+
+function populateDevices() {
+  for (const entry of midi.inputs) {
+    const port = entry[1];
+    const opt = new Option(port.name, port.id);
+    $("chooseIn").appendChild(opt);
+    if (port.name.includes("Deluge MIDI 3")) {
+      opt.selected = true;
+      setInput(port);
+    }
+  }
+  for (const entry of midi.outputs) {
+    const port = entry[1];
+    const opt = new Option(port.name, port.id);
+    $("chooseOut").appendChild(opt);
+    if (port.name.includes("Deluge MIDI 3")) {
+      opt.selected = true;
+      delugeOut = port;
+    }
+  }
+}
+
+function onChangeIn(ev) {
+  const id = ev.target.value;
+  setInput(midi.inputs.get(id))
+}
+
+function onChangeOut(ev) {
+  const id = ev.target.value;
+  console.log("choose the id:" + id)
+  delugeOut = midi.outputs.get(id) || null;
+  console.log("choose the port:" + delugeOut)
+}
+
 function onMIDISuccess(midiAccess) {
   setstatus("webmidi ready");
   midi = midiAccess; // store in the global (in real usage, would probably keep in an object instance)
+  populateDevices()
+  
+  // TODO: on statechange
 }
 
 function onMIDIFailure(msg) {
@@ -29,15 +82,21 @@ window.addEventListener('load', function() {
     setstatus("webmidi unavail, check browser permissions");
   }
 
-  $("connectButton").addEventListener("click", connect)
+  $("pingButton").addEventListener("click", pingTest)
   $("getOledButton").addEventListener("click", getOled)
   $("intervalButton").addEventListener("click", setRefresh)
   $("testDecodeButton").addEventListener("click", () => decode(testdata))
-  return;
 
+  $("chooseIn").addEventListener("change", onChangeIn)
+  $("chooseOut").addEventListener("change", onChangeOut)
+  return;
 });
 
-function connect() {
+function pingTest() {
+    delugeOut.send([0xf0, 0x7d, 0x00, 0xf7]);
+}
+
+function oldCodes() {
    for (const entry of midi.inputs) {
     const input = entry[1];
     console.log(
@@ -47,10 +106,6 @@ function connect() {
         ` name:'${input.name}'` +
         ` version:'${input.version}'`,
     );
-
-     if (input.name.includes("Deluge MIDI 3")) {
-       delugeIn = input;
-     }
   }
 
   for (const entry of midi.outputs) {
@@ -58,18 +113,6 @@ function connect() {
     console.log(
       `Output port [type:'${output.type}'] id:'${output.id}' manufacturer:'${output.manufacturer}' name:'${output.name}' version:'${output.version}'`,
     );
-
-     if (output.name.includes("Deluge MIDI 3")) {
-       delugeOut = output;
-     }
-  }
-
-  if (delugeIn != null && delugeOut != null) {
-    setstatus("found deluge!");
-    delugeIn.addEventListener("midimessage",  handleData);
-    delugeOut.send([0xf0, 0x7d, 0x00, 0xf7]);
-  } else {
-    setstatus("no deluge.");
   }
 }
 
@@ -96,7 +139,7 @@ let lastmsg
 function handleData(msg) {
   lastmsg = msg
   console.log(msg.data);
-  setstatus("found deluge! got some data.");
+  setstatus("got some data.");
   if (msg.data.length > 8) {
     $("dataLog").innerText = "size: " + msg.data.length
   }

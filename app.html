@@ -6,13 +6,18 @@
     <title>delugeapp</title>
   </head>
   <body>
-     <button type="button" id="connectButton">connect deluge</button>
+     <p>Change the midi device:
+     <br/>
+     in: <select id="chooseIn"><option label="(none)" value=""/></select>
+     out: <select id="chooseOut"><option label="(none)" value=""/></select>
+     </p>
+     <div id="midiStatus">loading...</div>
+     <br/>
+     <button type="button" id="pingButton">ping test</button>
      <button type="button" id="getOledButton">get OLED</button>
      <br/>
      ms: <input type="text" value="20" id="msInput"></input>
      <button type="button" id="intervalButton">start OLED Refresh</button>
-     <br/>
-     <div id="midiStatus"></div>
      <br/>
      <canvas id="myCanvas" width="800" height="300"></canvas>
      <br/>
