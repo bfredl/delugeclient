@@ -6,8 +6,8 @@ let delugeIn = null;
 let delugeOut = null;
 let theInterval = null;
 
-let devicesIn = null;
-let devicesOut = null;
+let devicesIn = {};
+let devicesOut = {};
 
 function $(name) {
   return document.getElementById(name)
@@ -63,10 +63,59 @@ function onChangeOut(ev) {
   console.log("choose the port:" + delugeOut)
 }
 
+function onStateChange(ev) {
+  const port = ev.port;
+  const delet = (port.state == "disconnected");
+  if (port.type == "input") {
+    let found = false;
+    let children = $("chooseIn").childNodes;
+    for (let i=0; i < children.length; i++) {
+      if (children[i].value == port.id) {
+        found = true;
+        if (delet) {
+          children[i].remove();
+          if (port == delugeIn) {
+            $("noneInput").selected = true;
+            // or maybe not, if id: are preserved during a disconnect/connect cycle
+            setInput(null);
+          }
+          break;
+        }
+      }
+    }
+    if (!found && !delet) {
+      const opt = new Option(port.name, port.id);
+      $("chooseIn").appendChild(opt);
+    }
+  } else {
+    let found = false;
+    let children = $("chooseOut").childNodes;
+    for (let i=0; i < children.length; i++) {
+      if (children[i].value == port.id) {
+        found = true;
+        if (delet) {
+          children[i].remove();
+          if (port == delugeOut) {
+            $("noneOutput").selected = true;
+            // or maybe not, if id: are preserved during a disconnect/connect cycle
+            delugeOut = null;
+          }
+          break;
+        }
+      }
+    }
+    if (!found && !delet) {
+      const opt = new Option(port.name, port.id);
+      $("chooseOut").appendChild(opt);
+    }
+  }
+}
+
 function onMIDISuccess(midiAccess) {
   setstatus("webmidi ready");
   midi = midiAccess; // store in the global (in real usage, would probably keep in an object instance)
   populateDevices()
+  midi.addEventListener("statechange", onStateChange)
   
   // TODO: on statechange
 }
