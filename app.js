@@ -122,8 +122,6 @@ function onMIDISuccess(midiAccess) {
   midi = midiAccess; // store in the global (in real usage, would probably keep in an object instance)
   populateDevices()
   midi.addEventListener("statechange", onStateChange)
-  
-  // TODO: on statechange
 }
 
 function onMIDIFailure(msg) {
