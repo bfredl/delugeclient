@@ -137,8 +137,10 @@ window.addEventListener('load', function() {
 
   $("pingButton").addEventListener("click", pingTest)
   $("getOledButton").addEventListener("click", getOled)
+  $("get7segButton").addEventListener("click", get7seg)
   $("intervalButton").addEventListener("click", setRefresh)
   $("testDecodeButton").addEventListener("click", () => decode(testdata))
+  $("test7segButton").addEventListener("click", () => draw7Seg([47,3,8,19]))
 
   $("chooseIn").addEventListener("change", onChangeIn)
   $("chooseOut").addEventListener("change", onChangeOut)
@@ -174,6 +176,10 @@ function getOled() {
     delugeOut.send([0xf0, 0x7d, 0x02, 0x00, 0x01, 0xf7]);
 }
 
+function get7seg() {
+    delugeOut.send([0xf0, 0x7d, 0x02, 0x01, 0x00, 0xf7]);
+}
+
 function setRefresh() {
   if (theInterval != null) {
     clearInterval(theInterval)
@@ -183,7 +189,8 @@ function setRefresh() {
   let value = parseInt($("msInput").value);
 
   if (value > 0) {
-    theInterval = setInterval(getOled, value);
+    // fubbigt: allow to choose
+    theInterval = setInterval(function() { getOled(); get7seg(); }, value);
   }
 }
 
@@ -215,45 +222,120 @@ function decode(data) {
       return;
     }
 
-    let packed = data.subarray(6,data.length-1)
-    console.log("packed size "+ packed.length);
+    drawOled(data)
+  } else if (data.length >= 5 && data[2] == 0x02 && data[3] == 0x41) {
+    console.log("found 7seg!")
 
-    let unpacked = lib.wrap_array(lib.fn.unpack_7to8_rle, packed)
-    console.log("unpacked size "+ unpacked.length);
+    if (data[4] != 0) {
+      console.log("DO NOT DO THAT")
+      return;
+    }
 
-    /** @type {CanvasRenderingContext2D} */
-    let ctx = $("myCanvas").getContext("2d")
+    // TODO: what about the dots
+    draw7Seg(data.subarray(7,11))
+  }
+}
 
-    let px_height = 5;
-    let px_width = 5;
-    let indist = 0.5;
-    let offx = 20;
-    let offy = 10;
+function drawOled(data) {
+  let packed = data.subarray(6,data.length-1)
+  console.log("packed size "+ packed.length);
 
-    let blk_width = 128;
-    ctx.fillStyle = "#111111";
-    ctx.fillRect(offx,offy,px_width*128,px_height*48)
+  let unpacked = lib.wrap_array(lib.fn.unpack_7to8_rle, packed)
+  console.log("unpacked size "+ unpacked.length);
 
-    ctx.fillStyle = "#eeeeee";
-    for (let blk = 0; blk < 6; blk++) {
-      for (let rstride = 0; rstride < 8; rstride++) {
-        let mask = 1 << (rstride);
-        for (let j = 0; j < blk_width; j++) {
-          if ((blk*blk_width+j) > unpacked.lenght) {
-            break;
-          }
-          let idata = (unpacked[blk*blk_width+j] & mask);
+  /** @type {CanvasRenderingContext2D} */
+  let ctx = $("oledCanvas").getContext("2d")
 
-          let y = blk*8 + rstride;
+  let px_height = 5;
+  let px_width = 5;
+  let indist = 0.5;
+  let offx = 10;
+  let offy = 5;
 
-          if (idata > 0) {
-            ctx.fillRect(offx+j*px_width+indist,offy+y*px_height+indist, px_width-2*indist, px_height-2*indist);
-          }
+  let blk_width = 128;
+  ctx.fillStyle = "#111111";
+  ctx.fillRect(offx,offy,px_width*128,px_height*48)
 
+  ctx.fillStyle = "#eeeeee";
+  for (let blk = 0; blk < 6; blk++) {
+    for (let rstride = 0; rstride < 8; rstride++) {
+      let mask = 1 << (rstride);
+      for (let j = 0; j < blk_width; j++) {
+        if ((blk*blk_width+j) > unpacked.length) {
+          break;
         }
+        let idata = (unpacked[blk*blk_width+j] & mask);
+
+        let y = blk*8 + rstride;
+
+        if (idata > 0) {
+          ctx.fillRect(offx+j*px_width+indist,offy+y*px_height+indist, px_width-2*indist, px_height-2*indist);
+        }
+
       }
     }
-    return;
+  }
+}
+
+function draw7Seg(digits) {
+  /** @type {CanvasRenderingContext2D} */
+  let ctx = $("7segCanvas").getContext("2d")
+
+  ctx.fillStyle = "#111111";
+  ctx.fillRect(0,0,310,120)
+
+  let digit_height = 100;
+  let digit_width = 50;
+  let stroke_thick = 7;
+  let half_height = digit_height/2;
+  let in_adj = 2;
+
+  let base_off_x = 3;
+  let off_y = 3;
+
+  let topbot = [[0,0],[stroke_thick+in_adj, stroke_thick],[digit_width-(stroke_thick+in_adj), stroke_thick], [digit_width, 0]];
+  let halfside = [[0,0],[stroke_thick, stroke_thick+in_adj],[stroke_thick, half_height-stroke_thick*0.5-in_adj], [0, half_height]];
+  let h = half_height;
+  let ht = stroke_thick;
+  let hta = stroke_thick/2//-in_adj/2;
+  let midline = [
+    [0,h],[ht,h-hta], [digit_width-ht,h-hta],
+    [digit_width, h], [digit_width-ht,h+hta], [ht,h+hta]
+  ];
+
+  for (let d = 0; d < 4; d++) {
+    let digit = digits[d];
+
+    let off_x = base_off_x + (13+digit_width)*d;
+
+    for (let s = 0; s < 7; s++) {
+      ctx.beginPath()
+      let path;
+      //if (s != 0) continue;
+      if (s == 0) { path = midline; }
+      else if (s == 3 || s == 6) { path = topbot; }
+      else  { path = halfside; }
+      for (let i = 0; i < path.length; i++) {
+        let c = path[i];
+        if (s == 2 || s == 3) { c = [c[0], digit_height-c[1]]; }
+        else if (s == 4) { c = [digit_width-c[0], digit_height-c[1]]; }
+        else if (s == 5) { c = [digit_width-c[0], c[1]]; }
+        if (i == 0) {
+          ctx.moveTo(off_x+c[0], off_y+c[1]);
+        } else {
+          ctx.lineTo(off_x+c[0], off_y+c[1]);
+        }
+      }
+
+      ctx.closePath()
+      if (digit & (1<<s)) { 
+        ctx.fillStyle = "#CC3333";
+      } else {
+        ctx.fillStyle = "#331111";
+      }
+
+      ctx.fill()
+    }
   }
 }
 
