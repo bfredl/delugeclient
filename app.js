@@ -140,7 +140,7 @@ window.addEventListener('load', function() {
   $("get7segButton").addEventListener("click", get7seg)
   $("intervalButton").addEventListener("click", setRefresh)
   $("testDecodeButton").addEventListener("click", () => decode(testdata))
-  $("test7segButton").addEventListener("click", () => draw7Seg([47,3,8,19]))
+  $("test7segButton").addEventListener("click", () => draw7Seg([47,3,8,19], 3))
 
   $("chooseIn").addEventListener("change", onChangeIn)
   $("chooseOut").addEventListener("change", onChangeOut)
@@ -232,7 +232,7 @@ function decode(data) {
     }
 
     // TODO: what about the dots
-    draw7Seg(data.subarray(7,11))
+    draw7Seg(data.subarray(7,11), data[6])
   }
 }
 
@@ -277,7 +277,7 @@ function drawOled(data) {
   }
 }
 
-function draw7Seg(digits) {
+function draw7Seg(digits, dots) {
   /** @type {CanvasRenderingContext2D} */
   let ctx = $("7segCanvas").getContext("2d")
 
@@ -305,21 +305,20 @@ function draw7Seg(digits) {
 
   for (let d = 0; d < 4; d++) {
     let digit = digits[d];
+    let dot = (dots & (1 << d)) != 0;
 
     let off_x = base_off_x + (13+digit_width)*d;
 
     for (let s = 0; s < 7; s++) {
       ctx.beginPath()
       let path;
-      //if (s != 0) continue;
       if (s == 0) { path = midline; }
       else if (s == 3 || s == 6) { path = topbot; }
       else  { path = halfside; }
       for (let i = 0; i < path.length; i++) {
         let c = path[i];
-        if (s == 2 || s == 3) { c = [c[0], digit_height-c[1]]; }
-        else if (s == 4) { c = [digit_width-c[0], digit_height-c[1]]; }
-        else if (s == 5) { c = [digit_width-c[0], c[1]]; }
+        if (s == 2 || s == 3 || s == 4 ) { c = [c[0], digit_height-c[1]]; } // flip horiz
+        if (s == 4 || s == 5) { c = [digit_width-c[0], c[1]]; } // flip vert
         if (i == 0) {
           ctx.moveTo(off_x+c[0], off_y+c[1]);
         } else {
@@ -336,6 +335,16 @@ function draw7Seg(digits) {
 
       ctx.fill()
     }
+
+    // the dot
+    ctx.beginPath()
+    ctx.rect(off_x+digit_width+3, off_y+digit_height+3, 6.5, 6.5);
+    if (dot) {
+      ctx.fillStyle = "#CC3333";
+    } else {
+      ctx.fillStyle = "#331111";
+    }
+    ctx.fill()
   }
 }
 
