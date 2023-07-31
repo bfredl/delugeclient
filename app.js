@@ -138,6 +138,7 @@ window.addEventListener('load', function() {
   $("pingButton").addEventListener("click", pingTest)
   $("getOledButton").addEventListener("click", getOled)
   $("get7segButton").addEventListener("click", get7seg)
+  $("getDebugButton").addEventListener("click", getDebug)
   $("intervalButton").addEventListener("click", setRefresh)
   $("testDecodeButton").addEventListener("click", () => decode(testdata))
   $("test7segButton").addEventListener("click", () => draw7Seg([47,3,8,19], 3))
@@ -178,6 +179,10 @@ function getOled() {
 
 function get7seg() {
     delugeOut.send([0xf0, 0x7d, 0x02, 0x01, 0x00, 0xf7]);
+}
+
+function getDebug() {
+    delugeOut.send([0xf0, 0x7d, 0x03, 0x00, 0x01, 0xf7]);
 }
 
 function setRefresh() {
@@ -231,9 +236,22 @@ function decode(data) {
       return;
     }
 
-    // TODO: what about the dots
     draw7Seg(data.subarray(7,11), data[6])
+  } else if (data.length >= 5 && data[2] == 0x03 && data[3] == 0x40) {
+    console.log("found debug!")
+    // data[4]: unused category
+
+    let msgbuf = data.subarray(5, data.length-1);
+    let message = new TextDecoder().decode(msgbuf)
+    let chunks = message.split('\n')
+    for (let i = 0; i < chunks.length; i++) {
+      $('debugOutput').insertAdjacentText('beforeend', chunks[i])
+      if (i < chunks.length-1) {
+        $('debugOutput').insertAdjacentElement('beforeend', document.createElement("br"));
+      }
+    }
   }
+
 }
 
 function drawOled(data) {
