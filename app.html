@@ -12,13 +12,13 @@
      out: <select id="chooseOut"><option label="(none)" value="" id="noneOutput"/></select>
      </p>
      <div id="midiStatus">loading...</div>
+     <div id="dataLog"></div>
      <button type="button" id="pingButton">ping test</button>
      <button type="button" id="getDebugButton">get debug</button>
      <button type="button" id="getOledButton">get OLED</button>
      <button type="button" id="get7segButton">get 7seg</button>
      <br/>
-     ms: <input type="text" value="20" id="msInput"></input>
-     <button type="button" id="intervalButton">start OLED/7SEG Refresh</button>
+     <button type="button" id="intervalButton">start Display Refresh</button>
      <p>
      oled screen: <br/>
      <canvas id="oledCanvas" width="700" height="260"></canvas>
@@ -35,7 +35,5 @@
 
      <button type="button" id="testDecodeButton">decode testdata</button>
      <button type="button" id="test7segButton">test 7seg</button>
-     <br/>
-     <div id="dataLog"></div>
   </body>
 </html>

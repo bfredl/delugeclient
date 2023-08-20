@@ -181,6 +181,10 @@ function get7seg() {
     delugeOut.send([0xf0, 0x7d, 0x02, 0x01, 0x00, 0xf7]);
 }
 
+function getDisplay() {
+    delugeOut.send([0xf0, 0x7d, 0x02, 0x00, 0x02, 0xf7]);
+}
+
 function getDebug() {
     delugeOut.send([0xf0, 0x7d, 0x03, 0x00, 0x01, 0xf7]);
 }
@@ -191,12 +195,8 @@ function setRefresh() {
     theInterval = null;
   }
 
-  let value = parseInt($("msInput").value);
-
-  if (value > 0) {
-    // fubbigt: allow to choose
-    theInterval = setInterval(function() { getOled(); get7seg(); }, value);
-  }
+  theInterval = setInterval(function() { getDisplay(); }, 1000);
+  getDisplay();
 }
 
 let lastmsg
@@ -204,7 +204,7 @@ let lastmsg
 /** @param {MIDIMessageEvent} msg */
 function handleData(msg) {
   lastmsg = msg
-  console.log(msg.data);
+  // console.log(msg.data);
   setstatus("got some data.");
   if (msg.data.length > 8) {
     $("dataLog").innerText = "size: " + msg.data.length
@@ -220,14 +220,16 @@ function decode(data) {
   }
 
   if (data.length >= 5 && data[2] == 0x02 && data[3] == 0x40) {
-    console.log("found OLED!")
+    // console.log("found OLED!")
 
-    if (data[4] != 1) {
+    if (data[4] == 1) {
+      drawOled(data)
+    } else if (data[4] == 2) {
+      drawOledDelta(data)
+    } else {
       console.log("DO NOT DO THAT")
-      return;
     }
 
-    drawOled(data)
   } else if (data.length >= 5 && data[2] == 0x02 && data[3] == 0x41) {
     console.log("found 7seg!")
 
@@ -251,16 +253,38 @@ function decode(data) {
       }
     }
   }
-
 }
+
+let oledData = new Uint8Array(6*128);
 
 function drawOled(data) {
   let packed = data.subarray(6,data.length-1)
-  console.log("packed size "+ packed.length);
 
   let unpacked = lib.wrap_array(lib.fn.unpack_7to8_rle, packed)
-  console.log("unpacked size "+ unpacked.length);
+  console.log(`reset ${unpacked.length} as ${packed.length}`);
 
+  if (unpacked.length == oledData.length) {
+    oledData = unpacked;
+  }
+  drawOleddata(unpacked);
+}
+
+function drawOledDelta(data) {
+
+  let first = data[5];
+  let len = data[6];
+  let packed = data.subarray(7,data.length-1)
+  //console.log("packed size "+ packed.length);
+
+  let unpacked = lib.wrap_array(lib.fn.unpack_7to8_rle, packed)
+  console.log(`first ${first}, len ${len}, delta size ${unpacked.length} as ${packed.length}`);
+
+  oledData.subarray(8*first,8*(first+len)).set(unpacked)
+  drawOleddata(oledData);
+}
+
+
+function drawOleddata(data) {
   /** @type {CanvasRenderingContext2D} */
   let ctx = $("oledCanvas").getContext("2d")
 
@@ -279,10 +303,10 @@ function drawOled(data) {
     for (let rstride = 0; rstride < 8; rstride++) {
       let mask = 1 << (rstride);
       for (let j = 0; j < blk_width; j++) {
-        if ((blk*blk_width+j) > unpacked.length) {
+        if ((blk*blk_width+j) > data.length) {
           break;
         }
-        let idata = (unpacked[blk*blk_width+j] & mask);
+        let idata = (data[blk*blk_width+j] & mask);
 
         let y = blk*8 + rstride;
 
@@ -294,6 +318,7 @@ function drawOled(data) {
     }
   }
 }
+
 
 function draw7Seg(digits, dots) {
   /** @type {CanvasRenderingContext2D} */
