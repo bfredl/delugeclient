@@ -8,6 +8,8 @@ let delugeIn = null;
 let delugeOut = null;
 let theInterval = null;
 
+let did_oled = false;
+
 let lib = null;
 loadlib(function(l) {
   lib = l;
@@ -138,6 +140,7 @@ window.addEventListener('load', function() {
   $("pingButton").addEventListener("click", pingTest)
   $("getOledButton").addEventListener("click", getOled)
   $("get7segButton").addEventListener("click", get7seg)
+  $("flipButton").addEventListener("click", flipscreen)
   $("getDebugButton").addEventListener("click", getDebug)
   $("intervalButton").addEventListener("click", setRefresh)
   $("testDecodeButton").addEventListener("click", () => decode(testdata))
@@ -181,12 +184,16 @@ function get7seg() {
     delugeOut.send([0xf0, 0x7d, 0x02, 0x01, 0x00, 0xf7]);
 }
 
-function getDisplay() {
-    delugeOut.send([0xf0, 0x7d, 0x02, 0x00, 0x02, 0xf7]);
+function getDisplay(force) {
+    delugeOut.send([0xf0, 0x7d, 0x02, 0x00, force ? 0x03 : 0x02, 0xf7]);
 }
 
 function getDebug() {
     delugeOut.send([0xf0, 0x7d, 0x03, 0x00, 0x01, 0xf7]);
+}
+
+function flipscreen() {
+    delugeOut.send([0xf0, 0x7d, 0x02, 0x00, 0x04, 0xf7]);
 }
 
 function setRefresh() {
@@ -195,8 +202,8 @@ function setRefresh() {
     theInterval = null;
   }
 
-  theInterval = setInterval(function() { getDisplay(); }, 1000);
-  getDisplay();
+  theInterval = setInterval(function() { getDisplay(false); }, 1000);
+  getDisplay(true);
 }
 
 let lastmsg
@@ -205,7 +212,6 @@ let lastmsg
 function handleData(msg) {
   lastmsg = msg
   // console.log(msg.data);
-  setstatus("got some data.");
   if (msg.data.length > 8) {
     $("dataLog").innerText = "size: " + msg.data.length
   }
@@ -283,20 +289,21 @@ function drawOledDelta(data) {
   drawOleddata(oledData);
 }
 
+let offx = 10;
+let offy = 5;
 
 function drawOleddata(data) {
   /** @type {CanvasRenderingContext2D} */
-  let ctx = $("oledCanvas").getContext("2d")
+  let ctx = $("screenCanvas").getContext("2d")
 
   let px_height = 5;
   let px_width = 5;
   let indist = 0.5;
-  let offx = 10;
-  let offy = 5;
 
   let blk_width = 128;
   ctx.fillStyle = "#111111";
   ctx.fillRect(offx,offy,px_width*128,px_height*48)
+  did_oled = true;
 
   ctx.fillStyle = "#eeeeee";
   for (let blk = 0; blk < 6; blk++) {
@@ -319,38 +326,42 @@ function drawOleddata(data) {
   }
 }
 
-
 function draw7Seg(digits, dots) {
   /** @type {CanvasRenderingContext2D} */
-  let ctx = $("7segCanvas").getContext("2d")
+  let ctx = $("screenCanvas").getContext("2d")
 
   ctx.fillStyle = "#111111";
-  ctx.fillRect(0,0,310,120)
+  if (did_oled) {
+    ctx.fillRect(offx,offy,5*128,5*48)
+    did_oled = false;
+  } else {
+    ctx.fillRect(offx,offy,310,140)
+  }
 
-  let digit_height = 100;
-  let digit_width = 50;
-  let stroke_thick = 7;
+  let digit_height = 120;
+  let digit_width = 60;
+  let stroke_thick = 9;
   let half_height = digit_height/2;
-  let in_adj = 2;
+  let out_adj = 0.5;
+  let in_adj = 1.5;
 
-  let base_off_x = 3;
-  let off_y = 3;
+  let off_y = offy + 6;
 
-  let topbot = [[0,0],[stroke_thick+in_adj, stroke_thick],[digit_width-(stroke_thick+in_adj), stroke_thick], [digit_width, 0]];
-  let halfside = [[0,0],[stroke_thick, stroke_thick+in_adj],[stroke_thick, half_height-stroke_thick*0.5-in_adj], [0, half_height]];
+  let topbot = [[out_adj,0],[stroke_thick+in_adj, stroke_thick],[digit_width-(stroke_thick+in_adj), stroke_thick], [digit_width-out_adj, 0]];
+  let halfside = [[0,out_adj],[stroke_thick, stroke_thick+in_adj],[stroke_thick, half_height-stroke_thick*0.5-in_adj], [0, half_height-out_adj]];
   let h = half_height;
   let ht = stroke_thick;
   let hta = stroke_thick/2//-in_adj/2;
   let midline = [
-    [0,h],[ht,h-hta], [digit_width-ht,h-hta],
-    [digit_width, h], [digit_width-ht,h+hta], [ht,h+hta]
+    [out_adj,h],[ht,h-hta], [digit_width-ht,h-hta],
+    [digit_width-out_adj, h], [digit_width-ht,h+hta], [ht,h+hta]
   ];
 
   for (let d = 0; d < 4; d++) {
     let digit = digits[d];
     let dot = (dots & (1 << d)) != 0;
 
-    let off_x = base_off_x + (13+digit_width)*d;
+    let off_x = offx + 8 + (13+digit_width)*d;
 
     for (let s = 0; s < 7; s++) {
       ctx.beginPath()
@@ -370,12 +381,12 @@ function draw7Seg(digits, dots) {
       }
 
       ctx.closePath()
+
       if (digit & (1<<s)) { 
         ctx.fillStyle = "#CC3333";
       } else {
         ctx.fillStyle = "#331111";
       }
-
       ctx.fill()
     }
 
