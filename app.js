@@ -211,6 +211,7 @@ let lastmsg
 /** @param {MIDIMessageEvent} msg */
 function handleData(msg) {
   lastmsg = msg
+  window.lastmsg = msg
   // console.log(msg.data);
   if (msg.data.length > 8) {
     $("dataLog").innerText = "size: " + msg.data.length
